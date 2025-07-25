@@ -2,8 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
 app.post('/create-session', async (req, res) => {
   const { amount, email } = req.body;
@@ -14,30 +14,32 @@ app.post('/create-session', async (req, res) => {
     checkout_id: 'go-invoice',
     txn_total: parseFloat(amount).toFixed(2),
     action: 'txn',
-    email: email // optional but included if needed
+    email: email
   };
 
   try {
-    const { data } = await axios.post(
+    const response = await axios.post(
       'https://gatewayt.moneris.com/chkt/request/request.php',
       payload,
-      { headers: { 'Content-Type': 'application/json' } }
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
 
-    // Success structure
-    if (data?.response?.checkout_url) {
-      return res.json({ checkout_url: data.response.checkout_url });
-    }
+    console.log("✅ Moneris raw response:", response.data);
 
-    // Error logging
-    return res.status(400).json({
-      error: "No checkout_url from Moneris",
-      raw: data
-    });
-  } catch (error) {
-    console.error("❌ Moneris Error:", error.response?.data || error.message);
-    return res.status(500).json({ error: "Moneris request failed" });
+    if (response.data?.response?.checkout_url) {
+      return res.json({ checkout_url: response.data.response.checkout_url });
+    } else {
+      return res.status(400).json({
+        error: 'No checkout_url from Moneris',
+        raw: response.data
+      });
+    }
+  } catch (err) {
+    console.error('❌ Moneris error:', err.response?.data || err.message);
+    return res.status(500).json({ error: 'Moneris session creation failed' });
   }
 });
 
-app.listen(3000, () => console.log("✅ Backend running on port 3000"));
+app.listen(3000, () => console.log('✅ Server running on port 3000'));
